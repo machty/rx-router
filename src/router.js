@@ -1,6 +1,7 @@
-function Transition(subscription) {
+function Transition(didAbort) {
   this.abort = function() {
-    subscription.onCompleted();
+    didAbort.onNext(true);
+    didAbort.onCompleted();
   };
 }
 
@@ -11,19 +12,45 @@ function Router(options) {
   var RP = options.RouteParams || RouteParams;
   var routeParams = new RP(getHandler);
 
-  var transitions = this.transitions = new Rx.Subject();
+  var latestTransitions = new Rx.Subject();
+
+  var didDestroy = new Rx.Subject();
+
+  var transitions = this.transitions =
+    latestTransitions.flatMapLatest(function(obs) {
+      // cleaner way to do this without seemingly useless identity mapping fn?
+      return obs;
+    }).takeUntil(didDestroy);
 
   this.transitionTo = function(paramsPayload) {
-    var subscription = routeParams.resolve(paramsPayload).subscribe(function (v) {
-      // more idiomatic way to forward events to a subject?
-      transitions.onNext(v);
-    });
 
-    return new Transition(subscription);
+    var didAbort = new Rx.Subject();
+    var transition = new Transition(didAbort);
+
+    var abort;
+    var transitionObservable = Rx.Observable.create(function(observer) {
+      var subscription = routeParams.resolve(paramsPayload).subscribe(function (v) {
+        observer.next(v);
+      });
+
+      return function() {
+        // onCompleted? or dispose?
+        subscription.onCompleted();
+      };
+    }).takeUntil(didAbort);
+
+    latestTransitions.onNext(transitionObservable);
+
+    return transition;
   };
 
   this.destroy = function() {
-    transitions.onCompleted();
+    // TODO: more idiomatic pattern for marking destruction?
+    // I tried calling onCompleted on `latestTransitions`, but
+    // but this didn't cause `transitions` to complete... why?
+
+    didDestroy.onNext(true);
+    didDestroy.onCompleted();
   };
 }
 

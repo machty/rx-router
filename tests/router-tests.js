@@ -90,6 +90,43 @@
       router.destroy();
     }, 50);
   });
+
+  asyncTest("a new transition aborts a previously active transition", function() {
+    var renderTree = {};
+    var count = 0;
+
+    router = new Router({
+      RouteParams: function StubRouteParams() {
+        this.resolve = function(payload) {
+          count++;
+          return Rx.Observable.timer(50, 50).take(2);
+        };
+      }
+    });
+
+    router.transitions
+          .toArray()
+          .subscribe(function(states) {
+            deepEqual(states, [0, 0, 1], "no render states were received");
+          }, null, start);
+
+    router.transitionTo({});
+
+    setTimeout(function() {
+      router.transitionTo({});
+    }, 70);
+
+    //var firstTransition = router.transitionTo({});
+    //var secondTransition = router.transitionTo({});
+    //transition.abort();
+
+    setTimeout(function() {
+      equal(count, 2);
+      router.destroy();
+    }, 200);
+  });
+
+
 })();
 
 
