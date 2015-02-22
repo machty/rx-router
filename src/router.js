@@ -1,3 +1,7 @@
+var fnString = 'function';
+function isObservable(obj) {
+  return obj && typeof obj.subscribe === fnString;
+}
 
 function RouteParams(getHandler) {
   this.getHandler = getHandler;
@@ -11,7 +15,8 @@ RouteParams.prototype.resolve = function(allParams) {
 
   return handlersObservable
            .concatMap(function(desc) {
-             return getHandler(desc.handler);
+             var val = getHandler(desc.handler);
+             return isObservable(val) ? val : Rx.Observable.just(val);
            })
            .zip(handlersObservable, function(handler, desc) {
              return {
@@ -20,18 +25,13 @@ RouteParams.prototype.resolve = function(allParams) {
                //params: desc.params
              };
            })
-           .flatMap(function() {
-             return Rx.Observable.just({});
-           });
+           //.flatMap(function() {
+             //return Rx.Observable.just({});
+           //});
 
-/*
-  return Rx.Observable.fromArray(allParams.handlers)
-           .scan(initial, function(acc, handlerDesc) {
-             var handlerName = handlerDesc.handler;
-             var handler = getHandler(handlerName);
-             return handler.reduce(acc);
+           .scan(initial, function(acc, obj) {
+             return obj.handler.reduce(acc);
            });
-           */
 };
 
 

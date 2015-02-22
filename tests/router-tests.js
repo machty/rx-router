@@ -32,7 +32,6 @@ asyncTest("a single handler", function() {
 
   function getHandler(handlerName) {
     equal(handlerName, 'wat');
-    debugger;
     return Rx.Observable.just({
       reduce: function(agg) {
         deepEqual(agg, {});
@@ -55,37 +54,14 @@ asyncTest("a single handler", function() {
 asyncTest("getHandler can return an observable; all handlerNames eagerly invoked", function() {
   expect(2);
 
-  // do we call getHandlers on an array ahead of time?
-  // or do we call them sequentially?
-  // are we sure this is useful?
-  //
-  // if we're at this point, we've already got mappings.
-  // so there's two things: you lazy load a recogHandlers array
-  // based on name: {{link-to 'wat'}} will do a getHandlers()
-  // observable on wat and basically load the route
-  //
-  // ASSUMPTION: all the shit has been Router.map'd. we're assuming
-  // that only the Route handlers are possibly still to be loaded...
-  // but they are already named.
-  //
-  // this is a fair assumption because:
-  // - you can't accidentally arrive at a URL
-  // - the only other remaining lazy loading case is if you
-  //   transitionTo or link-to another route.
-  //
-  //
-
-  debugger;
-  var vals = {};
+  var handlerNames = [];
   function getHandler(handlerName) {
-    ok(!vals[handlerName]);
-    vals[handlerName] = true;
-
+    handlerNames.push(handlerName);
     return Rx.Observable.just({
       reduce: function() {
         return {};
       }
-    });
+    }).delay(1); // delay escapes "run loop" so all getHandlers fire before resolution
   }
 
   var resolver = new RouteParams(getHandler);
@@ -96,7 +72,9 @@ asyncTest("getHandler can return an observable; all handlerNames eagerly invoked
     }, {
       handler: 'lol'
     }]
-  }).subscribe(K, null, start);
+  }).subscribe(function() {
+    deepEqual(handlerNames, ['wat', 'lol'], "all handler names retrieved by the time mapping fn called");
+  }, null, start);
 });
 
 // these handlers have model hooks
