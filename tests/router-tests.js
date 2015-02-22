@@ -77,6 +77,50 @@ asyncTest("getHandler can return an observable; all handlerNames eagerly invoked
   }, null, start);
 });
 
+function defaultGetHandler(handlers) {
+  return function(name) {
+    return handlers[name];
+  };
+}
+
+asyncTest("handlers' reduce fns progressively build up a (render?) tree", function() {
+  expect(1);
+
+  var handlerNames = [];
+  var getHandler = defaultGetHandler({
+    wat: {
+      reduce: function(tree) {
+        return {
+          wat: 'wat'
+        };
+      }
+    },
+    lol: {
+      reduce: function(tree) {
+        return {
+          lol: 'lol'
+        };
+      }
+    }
+  });
+
+  var resolver = new RouteParams(getHandler);
+
+  resolver.resolve({
+    handlers: [{ handler: 'wat' }, { handler: 'lol' }]
+  }).toArray().subscribe(function(treeProgression) {
+    deepEqual(treeProgression, [
+      {
+        wat: 'wat'
+      },
+      {
+        lol: 'lol'
+      }
+    ]);
+  }, null, start);
+});
+
+
 // these handlers have model hooks
 // and mapData...
 //
