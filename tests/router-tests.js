@@ -55,13 +55,14 @@ asyncTest("getHandler can return an observable; all handlerNames eagerly invoked
   expect(2);
 
   var handlerNames = [];
+  var count = 0;
   function getHandler(handlerName) {
     handlerNames.push(handlerName);
     return Rx.Observable.just({
       reduce: function() {
         return {};
       }
-    }).delay(1); // delay escapes "run loop" so all getHandlers fire before resolution
+    }).delay(++count === 1 ? 50 : 10); // test reverse resolution
   }
 
   var resolver = new RouteParams(getHandler);
@@ -79,7 +80,17 @@ asyncTest("getHandler can return an observable; all handlerNames eagerly invoked
 
 function defaultGetHandler(handlers) {
   return function(name) {
-    return handlers[name];
+    var handler = handlers[name];
+    if (!handler.reduce) {
+      handler.reduce = function() {
+        return {};
+      };
+    }
+
+    if (!handler.params) {
+      handler.params = {};
+    }
+    return handler;
   };
 }
 
@@ -119,6 +130,72 @@ asyncTest("handlers' reduce fns progressively build up a (render?) tree", functi
     ]);
   }, null, start);
 });
+
+asyncTest("handlers' model hooks get called as fuck", function() {
+  expect(3);
+
+  var watModel = {};
+  var lolModel = {};
+
+  var getHandler = defaultGetHandler({
+    wat: {
+      model: function(params, context) {
+        deepEqual(params, { wat_id: 123 });
+        deepEqual(context, {
+          //params: {
+            //wat_id: 123,
+            //lol_id: 456
+          //},
+          models: { }
+        });
+        return watModel;
+      }
+    },
+    lol: {
+      model: function(params, context) {
+        deepEqual(params, { lol_id: 456 });
+        // TODO: include params in the context var?
+        // what about the shared parameter names between different routes in the hierarchy?
+        //deepEqual(context.params, {
+          //wat_id: 123,
+          //lol_id: 456
+        //});
+        //return context.models.wat.map(function() {
+          return lolModel;
+        //});
+      }
+    }
+  });
+
+  var resolver = new RouteParams(getHandler);
+
+  resolver.resolve({
+    handlers: [{
+      handler: 'wat',
+      params: { wat_id: 123 }
+    }, {
+      handler: 'lol',
+      params: { lol_id: 456 }
+    }]
+  }).subscribe(K, null, start);
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // these handlers have model hooks
