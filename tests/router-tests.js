@@ -49,11 +49,7 @@
       RouteParams: function StubRouteParams() {
         this.resolve = function(payload) {
           equal(payload, paramsPayload, "RouteParams is passed the params payload passed to transitionTo");
-          return Rx.Observable.of({
-            render: 1
-          }, {
-            render: 2
-          });
+          return Rx.Observable.of(123, 456);
         };
       }
     });
@@ -61,10 +57,7 @@
     router.transitions
           .toArray()
           .subscribe(function(states) {
-            deepEqual(states, [
-              { render: 1 },
-              { render: 2 }
-            ], "all render states were received");
+            deepEqual(states, [ 123, 456 ], "all render states were received");
           }, null, start);
 
     router.transitionTo(paramsPayload);
@@ -74,6 +67,29 @@
     }, 5);
   });
 
+  asyncTest("transitionTo returns a transition", function() {
+    var renderTree = {};
+    router = new Router({
+      RouteParams: function StubRouteParams() {
+        this.resolve = function(payload) {
+          return Rx.Observable.of(renderTree).delay(10);
+        };
+      }
+    });
+
+    router.transitions
+          .toArray()
+          .subscribe(function(states) {
+            deepEqual(states, [], "no render states were received");
+          }, null, start);
+
+    var transition = router.transitionTo({});
+    transition.abort();
+
+    setTimeout(function() {
+      router.destroy();
+    }, 50);
+  });
 })();
 
 

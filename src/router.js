@@ -1,3 +1,9 @@
+function Transition(subscription) {
+  this.abort = function() {
+    subscription.onCompleted();
+  };
+}
+
 function Router(options) {
 
   var getHandler = options.getHandler;
@@ -8,20 +14,16 @@ function Router(options) {
   var transitions = this.transitions = new Rx.Subject();
 
   this.transitionTo = function(paramsPayload) {
-    routeParams.resolve(paramsPayload).subscribe(function (v) {
+    var subscription = routeParams.resolve(paramsPayload).subscribe(function (v) {
       // more idiomatic way to forward events to a subject?
       transitions.onNext(v);
     });
+
+    return new Transition(subscription);
   };
 
   this.destroy = function() {
     transitions.onCompleted();
   };
-
 }
-
-
-
-
-
 
